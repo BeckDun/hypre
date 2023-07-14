@@ -1320,18 +1320,21 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
    num_levels = hypre_ParAMGDataNumLevels(amg_data);
 
    hypre_ParCSRMatrix **A_array;
-   hypre_ParCSRCommPkg* comm_pkg;
    A_array = hypre_ParAMGDataAArray(amg_data);
 
+   hypre_ParCSRMatrix **P_array;
+   P_array = hypre_ParAMGDataPArray(amg_data);
+
+   hypre_ParCSRCommPkg* comm_pkg;
    MPI_Status status;
 
    double t0, tfinal;
    int timing_iters = 1000;
    int i, j, k;
 
-   for (i = 0; i < num_levels; i++)
+   for (i = 0; i < num_levels - 1; i++)
    {
-      comm_pkg = hypre_ParCSRMatrixCommPkg(A_array[i]);
+      comm_pkg = hypre_ParCSRMatrixCommPkg(P_array[i]);
       MPI_Comm comm = hypre_ParCSRCommPkgComm(comm_pkg);
       hypre_ParCSRPersistentCommHandle *comm_handle = hypre_ParCSRCommPkgGetPersistentCommHandle(1, comm_pkg);
       double *send_data = (double *) comm_handle->send_data_buffer;
@@ -1347,10 +1350,14 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       int* rdispls = hypre_ParCSRCommPkgRecvVecStarts(comm_pkg);
 
       if (rank == 0) printf("----------------------------------\n");
+
       // Standard hypre
       hypre_MPI_Request *requests;
       if (num_requests > 0)
          requests = hypre_CTAlloc(hypre_MPI_Request, num_requests, HYPRE_MEMORY_HOST);
+      hypre_ParCSRCommHandleNumRequests(comm_handle) = num_requests;
+      hypre_ParCSRCommHandleRequests(comm_handle) = requests;
+/*
       double *sendbuf = NULL;
       double *recvbuf1 = NULL;
       if (nsends)
@@ -1421,7 +1428,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
       if (rank == 0) printf("Standard start/wait time 2: %e\n", t0/timing_iters);
 
-      free(recvbuf1);
+      //free(recvbuf1);
       free(sendbuf);
       for (j = 0; j < num_requests; j++) {
          hypre_MPI_Request_free(&requests[j]); 
@@ -1431,8 +1438,10 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       // Unoptimized Neighborhood Collective
       MPIX_Comm* neighbor_comm;
       MPIX_Request* request;
+*/
       int* sendcounts = NULL;
       int* recvcounts = NULL;
+/*
       if (nsends)
          sendcounts = (int*)malloc(nsends*sizeof(int));
       if (nrecvs)
@@ -1461,9 +1470,11 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
             nrecvs,
             hypre_ParCSRCommPkgRecvProcs(comm_pkg),
             recvcounts,
+            //MPI_UNWEIGHTED,
             nsends,
             hypre_ParCSRCommPkgSendProcs(comm_pkg),
             sendcounts,
+            //MPI_UNWEIGHTED,
             MPI_INFO_NULL,
             0,
             &neighbor_comm);
@@ -1506,7 +1517,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       if (rank == 0) printf("unoptimized Start/Wait time: %e\n", t0/timing_iters);
 
       // buffer check
-      /*bool pass = NULL;
+      bool pass = NULL;
       bool pass_loc = true;
       for (j = 0; j < rdispls[nrecvs]; j++) {
           if (recvbuf1[j] != recvbuf2[j]) {
@@ -1517,7 +1528,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       if (!pass_loc) { hypre_printf("rank %d failed\n", rank); }
       MPI_Reduce(&pass_loc, &pass, 1, MPI_INT, MPI_LAND, 0, comm);
       if (rank == 0) { hypre_printf("verification for unopt: %s\n", pass ? "pass" : "fail"); }
-      */
+      
       free(sendcounts);
       free(recvcounts);
       free(recvbuf2);
@@ -1579,7 +1590,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       if (rank == 0) printf("part nap Start/Wait Time %e\n", t0/timing_iters);
 
       // buffer check
-      /*pass = NULL;
+      pass = NULL;
       pass_loc = true;
       for (j = 0; j < rdispls[nrecvs]; j++) {
           if (recvbuf1[j] != recvbuf2[j]) {
@@ -1589,7 +1600,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       }
       if (!pass_loc) { hypre_printf("rank %d failed\n", rank); }
       MPI_Reduce(&pass_loc, &pass, 1, MPI_INT, MPI_LAND, 0, comm);
-      if (rank == 0) { hypre_printf("verification for part: %s\n", pass ? "pass" : "fail"); }*/
+      if (rank == 0) { hypre_printf("verification for part: %s\n", pass ? "pass" : "fail"); }
 
       free(sendcounts);
       free(recvcounts);
@@ -1597,6 +1608,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       free(sendbuf);
       MPIX_Request_free(request);
 
+*/
       // Fully Optimized Neighborhood Collective
       if (nsends)
          sendcounts = (int*)malloc(nsends*sizeof(int));
@@ -1611,25 +1623,25 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       if (nsends)
       {
          global_sidx = (long*)malloc(sdispls[nsends]*sizeof(long));
-         sendbuf = (double*)malloc(sdispls[nsends]*sizeof(double));
-         for (j = 0; j < sdispls[nsends]; j++)
-            sendbuf[j] = send_data[j];
+//         sendbuf = (double*)malloc(sdispls[nsends]*sizeof(double));
+//         for (j = 0; j < sdispls[nsends]; j++)
+//            sendbuf[j] = send_data[j];
       }
       if (nrecvs)
       {
          global_ridx = (long*)malloc(rdispls[nrecvs]*sizeof(long));
-         recvbuf2 = (double*)malloc(rdispls[nrecvs]*sizeof(double));
+//         recvbuf2 = (double*)malloc(rdispls[nrecvs]*sizeof(double));
       }
       int* send_map_elmts = hypre_ParCSRCommPkgSendMapElmts(comm_pkg);
-      int first_col_diag = hypre_ParCSRMatrixFirstColDiag(A_array[i]);
-      int* col_map_offd = hypre_ParCSRMatrixColMapOffd(A_array[i]);
+      int first_col_diag = hypre_ParCSRMatrixFirstColDiag(P_array[i]);
+      int* col_map_offd = hypre_ParCSRMatrixColMapOffd(P_array[i]);
       for (j = 0; j < nsends; j++)
          for (k = sdispls[j]; k < sdispls[j+1]; k++)
             global_sidx[k] = send_map_elmts[k] + first_col_diag;
       for (j = 0; j < nrecvs; j++)
          for (k = rdispls[j]; k < rdispls[j+1]; k++)
             global_ridx[k] = col_map_offd[k];
-
+/*
       // fully optimized Neighbor Alltoallv Init Time
       MPI_Barrier(comm);
       t0 = MPI_Wtime();
@@ -1668,27 +1680,154 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       if (rank == 0) printf("full nap Start/Wait Time %e\n", t0/timing_iters);
 
       // buffer check
-      /*pass = NULL;
-      pass_loc = true;
+      bool pass = NULL;
+      bool pass_loc = true;
       for (j = 0; j < rdispls[nrecvs]; j++) {
           if (recvbuf1[j] != recvbuf2[j]) {
               pass_loc = false;
               hypre_printf("rank %d expected %e, got %e. Diff: %e\n", rank, recvbuf1[j], recvbuf2[j], recvbuf1[j] - recvbuf2[j]);
           }
       }
+      MPI_DOUBLEif (!pass_loc) { hypre_printf("rank %d failed\n", rank); }
+      MPI_Reduce(&pass_loc, &pass, 1, MPI_INT, MPI_LAND, 0, comm);
+      if (rank == 0) { hypre_printf("verification for full opt: %s\n", pass ? "pass" : "fail"); }
+      */
+
+      // Transpose standard
+      HYPRE_Complex *recv_buff1;
+      recv_buff1 = hypre_TAlloc(HYPRE_Complex, hypre_ParCSRCommPkgSendMapStart(comm_pkg, nsends),
+                                HYPRE_MEMORY_HOST);
+      HYPRE_Complex *send_buff;
+      send_buff = hypre_TAlloc(HYPRE_Complex, hypre_ParCSRCommPkgRecvVecStart(comm_pkg, nrecvs),
+                               HYPRE_MEMORY_HOST);
+      for (j = 0; j < rdispls[nrecvs]; j++)
+         send_buff[j] = j;
+      for (j = 0; j < sdispls[nsends]; j++)
+         recv_buff1[j] = 0;
+      //if (rank == 0) { hypre_printf("Copy done\n"); }
+      for (j = 0; j < nrecvs; ++j)
+      {  
+         HYPRE_Int ip = hypre_ParCSRCommPkgRecvProc(comm_pkg, j);
+         HYPRE_Int vec_start = hypre_ParCSRCommPkgRecvVecStart(comm_pkg, j);
+         HYPRE_Int vec_len = hypre_ParCSRCommPkgRecvVecStart(comm_pkg, j + 1) - vec_start;
+         hypre_MPI_Send_init( send_buff + vec_start, vec_len, HYPRE_MPI_COMPLEX,
+                              ip, 0, comm, requests + j );
+      }
+      for (j = 0; j < nsends; ++j)
+      {
+         HYPRE_Int ip = hypre_ParCSRCommPkgSendProc(comm_pkg, j);
+         HYPRE_Int vec_start = hypre_ParCSRCommPkgSendMapStart(comm_pkg, j);
+         HYPRE_Int vec_len = hypre_ParCSRCommPkgSendMapStart(comm_pkg, j + 1) - vec_start;
+         hypre_MPI_Recv_init( recv_buff1 + vec_start, vec_len, HYPRE_MPI_COMPLEX,
+                              ip, 0, comm, requests + nrecvs + j );
+      }
+      if (hypre_ParCSRCommHandleNumRequests(comm_handle) > 0)
+      {
+         //hypre_printf("startall\n");
+         HYPRE_Int ret = hypre_MPI_Startall(hypre_ParCSRCommHandleNumRequests(comm_handle),
+                                            hypre_ParCSRCommHandleRequests(comm_handle));
+         if (hypre_MPI_SUCCESS != ret)
+         {  
+            hypre_error_w_msg(HYPRE_ERROR_GENERIC, "MPI error\n");
+         }
+      }
+      if (hypre_ParCSRCommHandleNumRequests(comm_handle) > 0)
+      {
+         //hypre_printf("waitall\n");
+         HYPRE_Int ret = hypre_MPI_Waitall(hypre_ParCSRCommHandleNumRequests(comm_handle),
+                                           hypre_ParCSRCommHandleRequests(comm_handle),
+                                           hypre_MPI_STATUSES_IGNORE);
+         if (hypre_MPI_SUCCESS != ret)
+         {
+            hypre_error_w_msg(HYPRE_ERROR_GENERIC, "MPI error\n");
+         }
+      }
+      //if (rank == 0) { printf("Completed Standard transpose communication\n"); }
+
+      //if (rank == 0)
+      //   for (j = 0; j < sdispls[nsends]; j++)
+      //      hypre_printf("%e, ", recv_buff1[j]);
+      //   hypre_printf("\n");
+
+      // Transpose
+      HYPRE_Complex *recv_buff2;
+      recv_buff2 = hypre_TAlloc(HYPRE_Complex, hypre_ParCSRCommPkgSendMapStart(comm_pkg, nsends),
+                                HYPRE_MEMORY_HOST);
+      for (j = 0; j < sdispls[nsends]; j++)
+         recv_buff2[j] = 0;
+      MPIX_Comm *neighborT_comm;
+      MPIX_Request *request;
+      MPIX_Dist_graph_create_adjacent(
+            comm,
+            nsends,
+            hypre_ParCSRCommPkgSendProcs(comm_pkg),
+            sendcounts,
+            //MPI_UNWEIGHTED,
+            nrecvs,
+            hypre_ParCSRCommPkgRecvProcs(comm_pkg),
+            recvcounts,
+            //MPI_UNWEIGHTED,
+            MPI_INFO_NULL,
+            0,
+            &neighborT_comm);
+      MPIX_Neighbor_locality_alltoallv_init(
+            send_buff,
+            recvcounts,
+            hypre_ParCSRCommPkgRecvVecStarts(comm_pkg),
+            global_ridx,
+            HYPRE_MPI_COMPLEX,
+            recv_buff2,
+            sendcounts, 
+            hypre_ParCSRCommPkgSendMapStarts(comm_pkg),
+            global_sidx,
+            HYPRE_MPI_COMPLEX,
+            neighborT_comm,
+            MPI_INFO_NULL,
+            &request);
+      HYPRE_Int ret = MPIX_Start(request);
+      if (hypre_MPI_SUCCESS != ret)
+      {
+         hypre_error_w_msg(HYPRE_ERROR_GENERIC, "MPI error\n");
+      }
+      ret = MPIX_Wait(request, &status);
+      if (hypre_MPI_SUCCESS != ret)
+      {
+         hypre_error_w_msg(HYPRE_ERROR_GENERIC, "MPI error\n");
+      }
+
+      //hypre_printf("Completed transpose neighbor communication\n");
+      //if (rank == 0) {
+      //   printf("%e, %e\n", recv_buff1[10], recv_buff2[10]);
+      //}
+      
+      // buffer check
+      bool pass = NULL;
+      bool pass_loc = true;
+      for (j = 0; j < sdispls[nsends]; j++) {
+          if (recv_buff1[j] != recv_buff2[j]) {
+              pass_loc = false;
+              hypre_printf("rank %d expected %e, got %e\n", rank, recv_buff1[j], recv_buff2[j]);
+          }
+      }
       if (!pass_loc) { hypre_printf("rank %d failed\n", rank); }
       MPI_Reduce(&pass_loc, &pass, 1, MPI_INT, MPI_LAND, 0, comm);
-      if (rank == 0) { hypre_printf("verification for full opt: %s\n", pass ? "pass" : "fail"); }*/
+      if (rank == 0) { hypre_printf("verification for transpose: %s\n", pass ? "pass" : "fail"); }
 
       free(sendcounts);
       free(recvcounts);
       free(global_sidx);
       free(global_ridx);
-      free(sendbuf);
-      free(recvbuf2);
+ //     free(sendbuf);
+ //     free(recvbuf1);
+ //     free(recvbuf2);
+      free(send_buff);
+      free(recv_buff1);
+      free(recv_buff2);
+     
 
       MPIX_Request_free(request);
-      MPIX_Comm_free(neighbor_comm);
+//      MPIX_Comm_free(neighbor_comm);
+      MPIX_Comm_free(neighborT_comm);
    }
 }
 
