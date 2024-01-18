@@ -587,6 +587,15 @@ hypre_NewCommPkgDestroy( hypre_ParCSRMatrix *parcsr_A )
       hypre_TFree(hypre_ParCSRCommPkgRecvVecStarts(comm_pkg), HYPRE_MEMORY_HOST);
    }
 
+   HYPRE_ANNOTATE_REGION_BEGIN("%s", "MPI graph free");
+   if (comm_pkg->neighbor_comm) {
+      MPIX_Topo_free(comm_pkg->neighbor_comm);
+   }
+   if (comm_pkg->neighbor_comm) {
+      MPIX_Topo_free(comm_pkg->neighbor_comm);
+   }
+   HYPRE_ANNOTATE_REGION_END("%s", "MPI graph free");
+
    hypre_TFree(comm_pkg, HYPRE_MEMORY_HOST);
    hypre_ParCSRMatrixCommPkg(parcsr_A) = NULL;
 
@@ -781,30 +790,17 @@ hypre_ParCSRCreateCommGraph(HYPRE_BigInt first_col_diag,
    for (int i = 0; i < num_recvs; i++) {
       recvcounts[i] = recv_vec_starts[i+1] - recv_vec_starts[i];
    }
-   MPIX_Dist_graph_create_adjacent( comm, num_recvs, hypre_ParCSRCommPkgRecvProcs(comm_pkg),
+   HYPRE_ANNOTATE_REGION_BEGIN("%s", "MPI topo creation");
+   MPIX_Topo_dist_graph_create_adjacent(num_recvs, hypre_ParCSRCommPkgRecvProcs(comm_pkg),
                                     recvcounts,
                                     num_sends, hypre_ParCSRCommPkgSendProcs(comm_pkg),
                                     sendcounts,
                                     MPI_INFO_NULL, 0, &(comm_pkg->neighbor_comm));
-   MPIX_Dist_graph_create_adjacent( comm, num_sends, hypre_ParCSRCommPkgSendProcs(comm_pkg),
+   MPIX_Topo_dist_graph_create_adjacent(num_sends, hypre_ParCSRCommPkgSendProcs(comm_pkg),
                                     sendcounts,
                                     num_recvs, hypre_ParCSRCommPkgRecvProcs(comm_pkg),
                                     recvcounts,
                                     MPI_INFO_NULL, 0, &(comm_pkg->neighborT_comm));
-
-   HYPRE_Int num_send_elmts = send_map_starts[num_sends];
-   comm_pkg->global_send_indices = hypre_CTAlloc(long, num_send_elmts, HYPRE_MEMORY_HOST);
-   for (int i = 0; i < num_sends; i++) {
-      for (int j = send_map_starts[i]; j < send_map_starts[i+1]; j++) {
-         comm_pkg->global_send_indices[j] = send_map_elmts[j] + first_col_diag;
-      }
-   }
-   HYPRE_Int num_recv_elmts = recv_vec_starts[num_recvs];
-   comm_pkg->global_recv_indices = hypre_CTAlloc(long, num_recv_elmts, HYPRE_MEMORY_HOST);
-   for (int i = 0; i < num_recvs; i++) {
-      for (int j = recv_vec_starts[i]; j < recv_vec_starts[i+1]; j++) {
-         comm_pkg->global_recv_indices[j] = col_map_offd[j];
-      }
-   }
+   HYPRE_ANNOTATE_REGION_END("%s", "MPI topo creation");
 }
 #endif
