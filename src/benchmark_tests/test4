@@ -1,0 +1,15 @@
+#!/bin/bash
+#BSUB -J laplacian_n4
+#BSUB -e laplacian_n4.%J.err
+#BSUB -o laplacian_n4.%J.out
+#BSUB -nnodes 4
+##BSUB -q pbatch
+#BSUB -q pdebug
+#BSUB -W 00:15
+#BSUB -G unm
+
+cd /g/g14/bienz1/hypre_master/src/cmbuild/test
+
+jsrun -a32 -c32 -r1 -n4 --latency_priority=cpu-cpu --launch_distribution=packed --print_placement=1 ./ij -P 8 4 4 -rlx 6 -CF 0 -hmis -interptype 6 -Pmx 5 -agg_nl 1 -solver 0 -n 128 128 128
+
+

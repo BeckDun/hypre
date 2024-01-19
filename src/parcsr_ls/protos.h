@@ -1863,6 +1863,7 @@ HYPRE_Int hypre_SchwarzSetDofFunc ( void *data, HYPRE_Int *dof_func );
 
 /* par_stats.c */
 HYPRE_Int hypre_BoomerAMGSetupStats ( void *amg_vdata, hypre_ParCSRMatrix *A );
+HYPRE_Int hypre_BoomerAMGMatTimes ( void *amg_vdata );
 HYPRE_Int hypre_BoomerAMGWriteSolverParams ( void *data );
 const char* hypre_BoomerAMGGetProlongationName( hypre_ParAMGData *amg_data );
 const char* hypre_BoomerAMGGetAggProlongationName( hypre_ParAMGData *amg_data );

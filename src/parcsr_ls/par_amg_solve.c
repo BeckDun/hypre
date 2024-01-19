@@ -335,6 +335,7 @@ hypre_BoomerAMGSolve( void               *amg_vdata,
       }
    }
 
+
    if (cycle_count == max_iter && tol > 0.)
    {
       Solve_err_flag = 1;
@@ -418,7 +419,9 @@ hypre_BoomerAMGSolve( void               *amg_vdata,
       hypre_TFree(num_coeffs, HYPRE_MEMORY_HOST);
       hypre_TFree(num_variables, HYPRE_MEMORY_HOST);
    }
+
    HYPRE_ANNOTATE_FUNC_END;
+
 
    return hypre_error_flag;
 }

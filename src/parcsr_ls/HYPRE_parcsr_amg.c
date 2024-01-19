@@ -56,6 +56,12 @@ HYPRE_BoomerAMGSetup( HYPRE_Solver solver,
                                   (hypre_ParVector *) x ) );
 }
 
+HYPRE_Int
+HYPRE_BoomerAMGMatTimes( HYPRE_Solver solver )
+{
+   return hypre_BoomerAMGMatTimes ( (void *) solver );
+}
+
 /*--------------------------------------------------------------------------
  * HYPRE_BoomerAMGSolve
  *--------------------------------------------------------------------------*/

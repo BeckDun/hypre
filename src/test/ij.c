@@ -4661,6 +4661,7 @@ main( hypre_int argc,
 
       if (solver_id == 0)
       {
+         HYPRE_BoomerAMGMatTimes(amg_solver);
          HYPRE_BoomerAMGDestroy(amg_solver);
       }
       else if (solver_id == 90)

@@ -107,6 +107,7 @@ HYPRE_Int HYPRE_BoomerAMGSolve(HYPRE_Solver       solver,
                                HYPRE_ParCSRMatrix A,
                                HYPRE_ParVector    b,
                                HYPRE_ParVector    x);
+HYPRE_Int HYPRE_BoomerAMGMatTimes(HYPRE_Solver solver);
 
 /**
  * Solve the transpose system \f$A^T x = b\f$ or apply AMG as a preconditioner
