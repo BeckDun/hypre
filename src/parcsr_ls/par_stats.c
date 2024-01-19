@@ -1878,7 +1878,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       if (rank == 0) hypre_printf("Dist Graph Create Time %e\n", t0);
 
       /* Print P2P Time */
-/*      MPI_Barrier(comm);
+      MPI_Barrier(comm);
       t0 = MPI_Wtime();
       hypre_ParCSRCommHandle *comm_handle;
       comm_handle = hypre_ParCSRCommHandleCreate_v2(1, comm_pkg,
@@ -1887,11 +1887,13 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       hypre_ParCSRCommHandleDestroy(comm_handle);
       tfinal = MPI_Wtime() - t0;
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
-      if (rank == 0) hypre_printf("P2P Time %d\n", t0);
-*/
+      if (rank == 0) hypre_printf("P2P Time %e\n", t0);
+
 
       /* Print Neighbor Alltoallv Time */   
-/*      MPI_Neighbor_alltoallv(
+      MPI_Barrier(comm);
+      t0 = MPI_Wtime();
+      MPI_Neighbor_alltoallv(
          sendbuf,
          sendcounts,
          sdispls,
@@ -1901,7 +1903,9 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
          rdispls,
          MPI_DOUBLE,
          comm);
-*/
+      tfinal = MPI_Wtime() - t0;
+      MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+      if (rank == 0) hypre_printf("Neighbor alltoallv time %e\n", t0);
 
       free(sendcounts);
       free(recvcounts);
