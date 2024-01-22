@@ -1364,7 +1364,6 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
          recvbuf = (int*)malloc(rdispls[nrecvs]*sizeof(int));
       }
 
-/*
       HYPRE_Int num_requests = nsends + nrecvs;
       hypre_MPI_Request *requests = hypre_CTAlloc(hypre_MPI_Request, num_requests, HYPRE_MEMORY_HOST);
 
@@ -1389,7 +1388,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       tfinal = MPI_Wtime() - t0;
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
             hypre_ParCSRCommPkgComm(comm_pkg));
-      if (rank == 0) printf("P2P Init Time %e\n", t0);
+      if (rank == 0) hypre_printf("P2P Init Time %e\n", t0);
 
       MPI_Barrier(comm);
       t0 = MPI_Wtime();
@@ -1398,9 +1397,8 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       tfinal = MPI_Wtime() - t0;
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
             hypre_ParCSRCommPkgComm(comm_pkg));
-      if (rank == 0) printf("P2P Exchange Time %e\n", t0);
+      if (rank == 0) hypre_printf("P2P Exchange Time %e\n", t0);
       //hypre_printf("Start: %d, wait: %d\n", a, b);
-*/
 
       // Dist Graph Create Adjacent
       MPI_Barrier(comm);
