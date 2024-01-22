@@ -1317,6 +1317,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
 
    HYPRE_Int num_levels;
    num_levels = hypre_ParAMGDataNumLevels(amg_data);
+   hypre_printf("n_levels: %d\n", num_levels);
 
    hypre_ParCSRMatrix **A_array;
    hypre_ParCSRCommPkg* comm_pkg;
@@ -1363,6 +1364,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
          recvbuf = (int*)malloc(rdispls[nrecvs]*sizeof(int));
       }
 
+/*
       HYPRE_Int num_requests = nsends + nrecvs;
       hypre_MPI_Request *requests = hypre_CTAlloc(hypre_MPI_Request, num_requests, HYPRE_MEMORY_HOST);
 
@@ -1397,8 +1399,8 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
             hypre_ParCSRCommPkgComm(comm_pkg));
       if (rank == 0) printf("P2P Exchange Time %e\n", t0);
-      printf("Start: %d, wait: %d\n", a, b);
-
+      //hypre_printf("Start: %d, wait: %d\n", a, b);
+*/
 
       // Dist Graph Create Adjacent
       MPI_Barrier(comm);
@@ -1430,7 +1432,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       tfinal = MPI_Wtime() - t0;
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
             hypre_ParCSRCommPkgComm(comm_pkg));
-      if (rank == 0) printf("Dist Graph Create Time %e\n", t0);
+      if (rank == 0) hypre_printf("Dist Graph Create Time %e\n", t0);
 
       // Neighbor Alltoallv Init Time
       MPI_Barrier(comm);
@@ -1450,7 +1452,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       tfinal = MPI_Wtime() - t0;
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
             hypre_ParCSRCommPkgComm(comm_pkg));
-      if (rank == 0) printf("Neighbor Alltoallv Init Time %e\n", t0);
+      if (rank == 0) hypre_printf("Neighbor Alltoallv Init Time %e\n", t0);
 
       // Time Communication
       MPI_Barrier(comm);
@@ -1460,7 +1462,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       tfinal = MPI_Wtime() - t0;
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
             hypre_ParCSRCommPkgComm(comm_pkg));
-      if (rank == 0) printf("Neighbor Start/Wait Time %e\n", t0);
+      if (rank == 0) hypre_printf("Neighbor Start/Wait Time %e\n", t0);
 
       
       // Topo Create
@@ -1493,7 +1495,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       tfinal = MPI_Wtime() - t0;
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
             hypre_ParCSRCommPkgComm(comm_pkg));
-      if (rank == 0) printf("Topo Create Time %e\n", t0);
+      if (rank == 0) hypre_printf("Topo Create Time %e\n", t0);
 
       // Neighbor Alltoallv Init Time
       MPI_Barrier(comm);
@@ -1514,7 +1516,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       tfinal = MPI_Wtime() - t0;
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
             hypre_ParCSRCommPkgComm(comm_pkg));
-      if (rank == 0) printf("Neighbor Topo Alltoallv Init Time %e\n", t0);
+      if (rank == 0) hypre_printf("Neighbor Topo Alltoallv Init Time %e\n", t0);
 
       // Time Communication
       MPI_Barrier(comm);
@@ -1524,7 +1526,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       tfinal = MPI_Wtime() - t0;
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
             hypre_ParCSRCommPkgComm(comm_pkg));
-      if (rank == 0) printf("Topo Start/Wait Time %e\n", t0);
+      if (rank == 0) hypre_printf("Topo Start/Wait Time %e\n", t0);
 
       free(sendcounts);
       free(recvcounts);
@@ -1534,7 +1536,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       //for (int i = 0; i < num_requests; i++) {
       //   hypre_MPI_Request_free(&requests[i]);
       //}
-      free(requests);
+ //     free(requests);
 
       MPIX_Request_free(request);
       MPI_Comm_free(&neighbor_comm);
