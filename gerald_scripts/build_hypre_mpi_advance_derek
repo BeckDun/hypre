@@ -1,0 +1,14 @@
+#!/bin/bash
+set -e
+
+#module load gcc/8.3.1
+pushd $1/src
+
+CC=mpicc CXX=mpicxx ./configure --enable-persistent --with-MPI-include=/g/g15/collom1/derek_MPIA/src --with-MPI-lib-dirs=/g/g15/collom1/derek_MPIA/build/src/ --with-MPI-libs=mpi_advance --with-node-aware-mpi
+
+make clean
+make -j 10
+cd test
+rm cxx_ij*
+make cxx_ij
+popd

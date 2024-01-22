@@ -1317,7 +1317,6 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
 
    HYPRE_Int num_levels;
    num_levels = hypre_ParAMGDataNumLevels(amg_data);
-   hypre_printf("n_levels: %d\n", num_levels);
 
    hypre_ParCSRMatrix **A_array;
    hypre_ParCSRCommPkg* comm_pkg;
@@ -1330,14 +1329,16 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
 
    double t0, tfinal;
 
-   for (int i = 0; i < num_levels; i++)
+   for (int lvl = 0; lvl < num_levels; lvl++)
    {
-      comm_pkg = hypre_ParCSRMatrixCommPkg(A_array[i]);
+      comm_pkg = hypre_ParCSRMatrixCommPkg(A_array[lvl]);
       MPI_Comm comm = hypre_ParCSRCommPkgComm(comm_pkg);
 
       int rank, num_procs;
       MPI_Comm_rank(comm, &rank);
       MPI_Comm_size(comm, &num_procs);
+
+      if (rank == 0) hypre_printf("Level: %d\n", lvl);
 
       int nsends = hypre_ParCSRCommPkgNumSends(comm_pkg);
       int nrecvs = hypre_ParCSRCommPkgNumRecvs(comm_pkg);
@@ -1353,36 +1354,37 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
          sendcounts[i] = sdispls[i+1] - sdispls[i];
       for (int i = 0; i < nrecvs; i++)
          recvcounts[i] = rdispls[i+1] - rdispls[i];
-      int *sendbuf = NULL;
-      int *recvbuf = NULL;
+      double *sendbuf = NULL;
+      double *recvbuf = NULL;
       if (nsends)
       {
-         sendbuf = (int*)malloc(sdispls[nsends]*sizeof(int));
+         sendbuf = (double*)malloc(sdispls[nsends]*sizeof(double));
       }
       if (nrecvs)
       {
-         recvbuf = (int*)malloc(rdispls[nrecvs]*sizeof(int));
+         recvbuf = (double*)malloc(rdispls[nrecvs]*sizeof(double));
       }
 
       HYPRE_Int num_requests = nsends + nrecvs;
       hypre_MPI_Request *requests = hypre_CTAlloc(hypre_MPI_Request, num_requests, HYPRE_MEMORY_HOST);
+      //hypre_printf("rank %d: nsends: %d, nrecvs: %d\n", rank, nsends, nrecvs);
 
       MPI_Barrier(comm);
       t0 = MPI_Wtime();
-      for (i = 0; i < nrecvs; ++i)
+      for (int i = 0; i < nrecvs; ++i)
       {
          HYPRE_Int ip = hypre_ParCSRCommPkgRecvProc(comm_pkg, i);
          HYPRE_Int vec_start = hypre_ParCSRCommPkgRecvVecStart(comm_pkg, i);
          HYPRE_Int vec_len = hypre_ParCSRCommPkgRecvVecStart(comm_pkg, i + 1) - vec_start;
-         hypre_MPI_Recv_init( (HYPRE_Int *)recvbuf + vec_start, vec_len, HYPRE_MPI_INT,
+         hypre_MPI_Recv_init( (HYPRE_Int *)recvbuf + vec_start, vec_len, MPI_DOUBLE,
                               ip, 0, comm, requests + i );
       }
-      for (i = 0; i < nsends; ++i)
+      for (int i = 0; i < nsends; ++i)
       {
          HYPRE_Int ip = hypre_ParCSRCommPkgSendProc(comm_pkg, i);
          HYPRE_Int vec_start = hypre_ParCSRCommPkgSendMapStart(comm_pkg, i);
          HYPRE_Int vec_len = hypre_ParCSRCommPkgSendMapStart(comm_pkg, i + 1) - vec_start;
-         hypre_MPI_Send_init( (HYPRE_Int *)sendbuf + vec_start, vec_len, HYPRE_MPI_INT,
+         hypre_MPI_Send_init( (HYPRE_Int *)sendbuf + vec_start, vec_len, MPI_DOUBLE,
                               ip, 0, comm, requests + nrecvs + i );
       }
       tfinal = MPI_Wtime() - t0;
@@ -1391,12 +1393,16 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       if (rank == 0) hypre_printf("P2P Init Time %e\n", t0);
 
       MPI_Barrier(comm);
-      t0 = MPI_Wtime();
-      int a = hypre_MPI_Startall(num_requests, requests);
-      int b = hypre_MPI_Waitall(num_requests, requests, hypre_MPI_STATUSES_IGNORE);
-      tfinal = MPI_Wtime() - t0;
+      if (nsends) {
+         t0 = MPI_Wtime();
+         hypre_MPI_Startall(num_requests, requests);
+         hypre_MPI_Waitall(num_requests, requests, hypre_MPI_STATUSES_IGNORE);
+         tfinal = MPI_Wtime() - t0;
+      } else {
+         tfinal = 0;
+      }
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
-            hypre_ParCSRCommPkgComm(comm_pkg));
+                 hypre_ParCSRCommPkgComm(comm_pkg));
       if (rank == 0) hypre_printf("P2P Exchange Time %e\n", t0);
       //hypre_printf("Start: %d, wait: %d\n", a, b);
 
@@ -1432,6 +1438,24 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
             hypre_ParCSRCommPkgComm(comm_pkg));
       if (rank == 0) hypre_printf("Dist Graph Create Time %e\n", t0);
 
+      // MPI Neighbor Alltoallv
+      MPI_Barrier(comm);
+      t0 = MPI_Wtime();
+      MPI_Neighbor_alltoallv(
+            sendbuf,
+            sendcounts,
+            hypre_ParCSRCommPkgSendMapStarts(comm_pkg),
+            MPI_DOUBLE,
+            recvbuf,
+            recvcounts,
+            hypre_ParCSRCommPkgRecvVecStarts(comm_pkg),
+            MPI_DOUBLE,
+            neighbor_comm);
+      tfinal = MPI_Wtime() - t0;
+      MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
+            hypre_ParCSRCommPkgComm(comm_pkg));
+      if (rank == 0) hypre_printf("Neighbor Alltoallv Time %e\n", t0);
+
       // Neighbor Alltoallv Init Time
       MPI_Barrier(comm);
       t0 = MPI_Wtime();
@@ -1439,11 +1463,11 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
             sendbuf,
             sendcounts, 
             hypre_ParCSRCommPkgSendMapStarts(comm_pkg),
-            MPI_INT, 
+            MPI_DOUBLE, 
             recvbuf,
             recvcounts,
             hypre_ParCSRCommPkgRecvVecStarts(comm_pkg),
-            MPI_INT,
+            MPI_DOUBLE,
             neighbor_comm,
             MPI_INFO_NULL,
             &request);
@@ -1462,7 +1486,6 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
             hypre_ParCSRCommPkgComm(comm_pkg));
       if (rank == 0) hypre_printf("Neighbor Start/Wait Time %e\n", t0);
 
-      
       // Topo Create
       MPIX_Topo *topo;
       MPIX_Topo *topoT;
@@ -1502,11 +1525,11 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
             sendbuf,
             sendcounts, 
             hypre_ParCSRCommPkgSendMapStarts(comm_pkg),
-            MPI_INT, 
+            MPI_DOUBLE, 
             recvbuf,
             recvcounts,
             hypre_ParCSRCommPkgRecvVecStarts(comm_pkg),
-            MPI_INT,
+            MPI_DOUBLE,
             topo,
             comm,
             MPI_INFO_NULL,
@@ -1531,17 +1554,15 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       free(sendbuf);
       free(recvbuf);
 
-      //for (int i = 0; i < num_requests; i++) {
-      //   hypre_MPI_Request_free(&requests[i]);
-      //}
- //     free(requests);
+      for (int i = 0; i < num_requests; i++) {
+         hypre_MPI_Request_free(&requests[i]);
+      }
+      free(requests);
 
       MPIX_Request_free(request);
       MPI_Comm_free(&neighbor_comm);
       MPIX_Topo_free(topo);
    }
-
-
 }
 
 
