@@ -1329,7 +1329,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
 
    double t0, tfinal;
 
-   for (int lvl = 0; lvl < num_levels; lvl++)
+   for (int lvl = 0; lvl < num_levels-1; lvl++)
    {
       comm_pkg = hypre_ParCSRMatrixCommPkg(A_array[lvl]);
       MPI_Comm comm = hypre_ParCSRCommPkgComm(comm_pkg);
