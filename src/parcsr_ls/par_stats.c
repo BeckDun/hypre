@@ -1326,6 +1326,12 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
    MPIX_Request* request;
    MPI_Status status;
 
+   int n_dist_iters = 100;
+   int n_init_iters = 100;
+   int n_comm_iters = 100;
+   int n_reorder_iters = 100;
+   int n_ordered_comm_iters = 100;
+
    double t0, tfinal;
 
    for (int i = 0; i < num_levels; i++)
@@ -1379,43 +1385,46 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       // Dist Graph Create Adjacent
       MPI_Barrier(comm);
       t0 = MPI_Wtime();
-      MPIX_Dist_graph_create_adjacent(
-            comm,
-            nrecvs,
-            hypre_ParCSRCommPkgRecvProcs(comm_pkg),
-            recvcounts,
-            nsends,
-            hypre_ParCSRCommPkgSendProcs(comm_pkg),
-            sendcounts,
-            MPI_INFO_NULL,
-            0,
-            &neighbor_comm);
-//      update_locality(neighbor_comm, 4);
-
-      tfinal = MPI_Wtime() - t0;
+      for (int i = 0; i < n_dist_iters; i++)
+      {
+         MPIX_Dist_graph_create_adjacent(
+               comm,
+               nrecvs,
+               hypre_ParCSRCommPkgRecvProcs(comm_pkg),
+               recvcounts,
+               nsends,
+               hypre_ParCSRCommPkgSendProcs(comm_pkg),
+               sendcounts,
+               MPI_INFO_NULL,
+               0,
+               &neighbor_comm);
+      }
+      tfinal = (MPI_Wtime() - t0) / n_dist_iters;
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
             hypre_ParCSRCommPkgComm(comm_pkg));
       if (rank == 0) printf("Dist Graph Create Time %e\n", t0);
 
-      // Neighbor Alltoallv Init Time
+      // Standard Neighbor Alltoallv Init Time
       MPI_Barrier(comm);
       t0 = MPI_Wtime();
-      MPIX_Neighbor_locality_alltoallv_init(
-      //MPIX_Neighbor_part_locality_alltoallv_init(
-            sendbuf,
-            sendcounts, 
-            hypre_ParCSRCommPkgSendMapStarts(comm_pkg),
-            global_sidx,
-            MPI_DOUBLE, 
-            recvbuf,
-            recvcounts,
-            hypre_ParCSRCommPkgRecvVecStarts(comm_pkg),
-            global_ridx,
-            MPI_DOUBLE,
-            neighbor_comm,
-            MPI_INFO_NULL,
-            &request);
-      tfinal = MPI_Wtime() - t0;
+      for (int i = 0; i < n_init_iters; i++)
+      {
+         MPIX_Neighbor_alltoallv_init(
+               sendbuf,
+               sendcounts, 
+               hypre_ParCSRCommPkgSendMapStarts(comm_pkg),
+               global_sidx,
+               MPI_DOUBLE, 
+               recvbuf,
+               recvcounts,
+               hypre_ParCSRCommPkgRecvVecStarts(comm_pkg),
+               global_ridx,
+               MPI_DOUBLE,
+               neighbor_comm,
+               MPI_INFO_NULL,
+               &request);
+      }
+      tfinal = (MPI_Wtime() - t0) / n_init_iters;
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
             hypre_ParCSRCommPkgComm(comm_pkg));
       if (rank == 0) printf("Neighbor Alltoallv Init Time %e\n", t0);
@@ -1423,12 +1432,43 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       // Time Communication
       MPI_Barrier(comm);
       t0 = MPI_Wtime();
-      MPIX_Start(request);
-      MPIX_Wait(request, &status);
-      tfinal = MPI_Wtime() - t0;
+      for (int i = 0; i < n_comm_iters; i++)
+      {
+         MPIX_Start(request);
+         MPIX_Wait(request, &status);
+      }
+      tfinal = (MPI_Wtime() - t0) / n_comm_iters;
       MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
             hypre_ParCSRCommPkgComm(comm_pkg));
       if (rank == 0) printf("Start/Wait Time %e\n", t0);
+
+      // Reorder Time
+      MPI_Barrier(comm);
+      t0 = MPI_Wtime();
+      for (int i = 0; i < n_reorder_iters; i++)
+      {
+         request->reorder = 1;
+         MPIX_Start(request);
+         MPIX_Wait(request, &status);
+      }
+      tfinal = (MPI_Wtime() - t0) / n_reorder_iters;
+      MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
+            hypre_ParCSRCommPkgComm(comm_pkg));
+      if (rank == 0) printf("Reorder Time %e\n", t0);
+
+
+      // Ordered Communication Time
+      MPI_Barrier(comm);
+      t0 = MPI_Wtime();
+      for (int i = 0; i < n_ordered_comm_iters; i++)
+      {
+         MPIX_Start(request);
+         MPIX_Wait(request, &status);
+      }
+      tfinal = (MPI_Wtime() - t0) / n_comm_iters;
+      MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
+            hypre_ParCSRCommPkgComm(comm_pkg));
+      if (rank == 0) printf("Ordered Start/Wait Time %e\n", t0);
 
       free(sendcounts);
       free(recvcounts);
