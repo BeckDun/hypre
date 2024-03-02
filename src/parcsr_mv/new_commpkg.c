@@ -589,10 +589,10 @@ hypre_NewCommPkgDestroy( hypre_ParCSRMatrix *parcsr_A )
 
    HYPRE_ANNOTATE_REGION_BEGIN("%s", "MPI graph free");
    if (comm_pkg->neighbor_comm) {
-      MPIX_Topo_free(comm_pkg->neighbor_comm);
+      MPIX_Comm_free(&(comm_pkg->neighbor_comm));
    }
    if (comm_pkg->neighbor_comm) {
-      MPIX_Topo_free(comm_pkg->neighbor_comm);
+      MPIX_Comm_free(&(comm_pkg->neighbor_comm));
    }
    HYPRE_ANNOTATE_REGION_END("%s", "MPI graph free");
 
@@ -790,17 +790,20 @@ hypre_ParCSRCreateCommGraph(HYPRE_BigInt first_col_diag,
    for (int i = 0; i < num_recvs; i++) {
       recvcounts[i] = recv_vec_starts[i+1] - recv_vec_starts[i];
    }
-   HYPRE_ANNOTATE_REGION_BEGIN("%s", "MPI topo creation");
-   MPIX_Topo_dist_graph_create_adjacent(num_recvs, hypre_ParCSRCommPkgRecvProcs(comm_pkg),
+   HYPRE_ANNOTATE_REGION_BEGIN("%s", "MPIX comm creation");
+   MPIX_Dist_graph_create_adjacent(comm_pkg->comm,
+                                    num_recvs, hypre_ParCSRCommPkgRecvProcs(comm_pkg),
                                     recvcounts,
                                     num_sends, hypre_ParCSRCommPkgSendProcs(comm_pkg),
                                     sendcounts,
                                     MPI_INFO_NULL, 0, &(comm_pkg->neighbor_comm));
-   MPIX_Topo_dist_graph_create_adjacent(num_sends, hypre_ParCSRCommPkgSendProcs(comm_pkg),
+   MPIX_Dist_graph_create_adjacent(comm_pkg->comm,
+                                    num_sends, hypre_ParCSRCommPkgSendProcs(comm_pkg),
                                     sendcounts,
                                     num_recvs, hypre_ParCSRCommPkgRecvProcs(comm_pkg),
                                     recvcounts,
                                     MPI_INFO_NULL, 0, &(comm_pkg->neighborT_comm));
-   HYPRE_ANNOTATE_REGION_END("%s", "MPI topo creation");
+   
+   HYPRE_ANNOTATE_REGION_END("%s", "MPIX comm creation");
 }
 #endif

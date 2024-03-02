@@ -59,8 +59,8 @@ typedef struct _hypre_ParCSRCommPkg
 {
    MPI_Comm                          comm;
 #ifdef HYPRE_USING_NODE_AWARE_MPI
-   MPIX_Topo                        *neighbor_comm;
-   MPIX_Topo                        *neighborT_comm;
+   MPIX_Comm                        *neighbor_comm;
+   MPIX_Comm                        *neighborT_comm;
 #endif
    HYPRE_Int                         num_components;
    HYPRE_Int                         num_sends;
