@@ -1326,6 +1326,9 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
    MPIX_Request* request;
    MPI_Status status;
 
+   MPIX_Info* xinfo;
+   MPIX_Info_init(&xinfo);
+
    int n_dist_iters = 100;
    int n_init_iters = 100;
    int n_comm_iters = 100;
@@ -1413,15 +1416,13 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
                sendbuf,
                sendcounts, 
                hypre_ParCSRCommPkgSendMapStarts(comm_pkg),
-               global_sidx,
                MPI_DOUBLE, 
                recvbuf,
                recvcounts,
                hypre_ParCSRCommPkgRecvVecStarts(comm_pkg),
-               global_ridx,
                MPI_DOUBLE,
                neighbor_comm,
-               MPI_INFO_NULL,
+               xinfo,
                &request);
       }
       tfinal = (MPI_Wtime() - t0) / n_init_iters;
@@ -1477,11 +1478,12 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       free(sendbuf);
       free(recvbuf);
 
-      MPIX_Request_free(request);
-      MPIX_Comm_free(neighbor_comm);
+      MPIX_Request_free(&request);
+      MPIX_Comm_free(&neighbor_comm);
    }
+   MPIX_Info_free(&xinfo);
 
-
+   return MPI_SUCCESS;
 }
 
 
