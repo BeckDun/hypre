@@ -1348,8 +1348,12 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       int* recvcounts = NULL;
       if (nsends)
          sendcounts = (int*)malloc(nsends*sizeof(int));
+      else
+         sendcounts = (int*)malloc(sizeof(int));
       if (nrecvs)
          recvcounts = (int*)malloc(nrecvs*sizeof(int));
+      else
+         recvcounts = (int*)malloc(sizeof(int));
       for (int i = 0; i < nsends; i++)
          sendcounts[i] = sdispls[i+1] - sdispls[i];
       for (int i = 0; i < nrecvs; i++)
@@ -1359,10 +1363,14 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       if (nsends)
       {
          sendbuf = (double*)malloc(sdispls[nsends]*sizeof(double));
+      } else {
+         sendbuf = (double*)malloc(sizeof(double));
       }
       if (nrecvs)
       {
          recvbuf = (double*)malloc(rdispls[nrecvs]*sizeof(double));
+      } else {
+         recvbuf = (double*)malloc(sizeof(double));
       }
 
       HYPRE_Int num_requests = nsends + nrecvs;
@@ -1487,6 +1495,8 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       if (rank == 0) hypre_printf("Neighbor Start/Wait Time %e\n", t0);
 
       // Topo Create
+      MPIX_Comm *topo_comm;
+      MPIX_Comm_init(&topo_comm, comm);
       MPIX_Topo *topo;
       MPIX_Topo *topoT;
       MPI_Barrier(comm);
@@ -1549,10 +1559,94 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
             hypre_ParCSRCommPkgComm(comm_pkg));
       if (rank == 0) hypre_printf("Topo Start/Wait Time %e\n", t0);
 
+      // Topo+Part+Locality
+      MPI_Barrier(comm);
+      t0 = MPI_Wtime();
+      MPIX_Neighbor_part_locality_topo_alltoallv_init(
+            sendbuf,
+            sendcounts, 
+            hypre_ParCSRCommPkgSendMapStarts(comm_pkg),
+            MPI_DOUBLE, 
+            recvbuf,
+            recvcounts,
+            hypre_ParCSRCommPkgRecvVecStarts(comm_pkg),
+            MPI_DOUBLE,
+            topo,
+            topo_comm,
+            MPI_INFO_NULL,
+            &request);
+      tfinal = MPI_Wtime() - t0;
+      MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
+            hypre_ParCSRCommPkgComm(comm_pkg));
+      if (rank == 0) hypre_printf("Neighbor Part Locality Topo Alltoallv Init Time %e\n", t0);
+
+      // Time Communication
+      MPI_Barrier(comm);
+      t0 = MPI_Wtime();
+      MPIX_Start(request);
+      MPIX_Wait(request, &status);
+      tfinal = MPI_Wtime() - t0;
+      MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
+            hypre_ParCSRCommPkgComm(comm_pkg));
+      if (rank == 0) hypre_printf("Part Locality Topo Start/Wait Time %e\n", t0);
+
+      // Topo+Locality
+      HYPRE_BigInt first_col_diag = A_array[lvl]->first_col_diag;
+      HYPRE_BigInt *col_map_offd = A_array[lvl]->col_map_offd;
+      HYPRE_Int *send_map_elmts = hypre_ParCSRCommPkgSendMapElmts(comm_pkg);
+      HYPRE_Int num_send_elmts = hypre_ParCSRCommPkgSendMapStarts(comm_pkg)[nsends];
+      long *global_send_indices = hypre_CTAlloc(long, num_send_elmts, HYPRE_MEMORY_HOST);
+      for (int i = 0; i < nsends; i++) {
+         for (int j = hypre_ParCSRCommPkgSendMapStarts(comm_pkg)[i]; j < hypre_ParCSRCommPkgSendMapStarts(comm_pkg)[i+1]; j++) {
+            global_send_indices[j] = send_map_elmts[j] + first_col_diag;
+         }
+      }
+      HYPRE_Int num_recv_elmts = hypre_ParCSRCommPkgRecvVecStarts(comm_pkg)[nrecvs];
+      long *global_recv_indices = hypre_CTAlloc(long, num_recv_elmts, HYPRE_MEMORY_HOST);
+      for (int i = 0; i < nrecvs; i++) {
+         for (int j = hypre_ParCSRCommPkgRecvVecStarts(comm_pkg)[i]; j < hypre_ParCSRCommPkgRecvVecStarts(comm_pkg)[i+1]; j++) {
+            global_recv_indices[j] = col_map_offd[j];
+         }
+      }
+
+      MPI_Barrier(comm);
+      t0 = MPI_Wtime();
+      MPIX_Neighbor_locality_topo_alltoallv_init(
+            sendbuf,
+            sendcounts, 
+            hypre_ParCSRCommPkgSendMapStarts(comm_pkg),
+            global_send_indices,
+            MPI_DOUBLE, 
+            recvbuf,
+            recvcounts,
+            hypre_ParCSRCommPkgRecvVecStarts(comm_pkg),
+            global_recv_indices,
+            MPI_DOUBLE,
+            topo,
+            topo_comm,
+            MPI_INFO_NULL,
+            &request);
+      tfinal = MPI_Wtime() - t0;
+      MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
+            hypre_ParCSRCommPkgComm(comm_pkg));
+      if (rank == 0) hypre_printf("Neighbor Locality Topo Alltoallv Init Time %e\n", t0);
+
+      // Time Communication
+      MPI_Barrier(comm);
+      t0 = MPI_Wtime();
+      MPIX_Start(request);
+      MPIX_Wait(request, &status);
+      tfinal = MPI_Wtime() - t0;
+      MPI_Reduce(&tfinal, &t0, 1, MPI_DOUBLE, MPI_MAX, 0,
+            hypre_ParCSRCommPkgComm(comm_pkg));
+      if (rank == 0) hypre_printf("Locality Topo Start/Wait Time %e\n", t0);
+
       free(sendcounts);
       free(recvcounts);
       free(sendbuf);
       free(recvbuf);
+      free(global_send_indices);
+      free(global_recv_indices);
 
       for (int i = 0; i < num_requests; i++) {
          hypre_MPI_Request_free(&requests[i]);
@@ -1562,6 +1656,7 @@ HYPRE_Int hypre_BoomerAMGMatTimes(void* data)
       MPIX_Request_free(request);
       MPI_Comm_free(&neighbor_comm);
       MPIX_Topo_free(topo);
+      MPIX_Comm_free(topo_comm);
    }
 }
 
