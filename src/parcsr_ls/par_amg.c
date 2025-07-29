@@ -1315,6 +1315,33 @@ hypre_BoomerAMGGetStrongThreshold( void     *data,
 }
 
 HYPRE_Int
+hypre_BoomerAMGGetAArray(void* data, hypre_ParCSRMatrix*** A_array)
+{
+    hypre_ParAMGData* amg_data = (hypre_ParAMGData*) data;
+    if (!amg_data)
+    {
+        hypre_error_in_arg(1);
+        return hypre_error_flag;
+    }
+
+    *A_array = hypre_ParAMGDataAArray(amg_data);
+    return hypre_error_flag;
+}
+
+hypre_BoomerAMGGetNumLevels(void* data, HYPRE_Int* num_levels)
+{
+    hypre_ParAMGData* amg_data = (hypre_ParAMGData*) data;
+    if (!amg_data)
+    {
+        hypre_error_in_arg(1);
+        return hypre_error_flag;
+    }
+
+    *num_levels = hypre_ParAMGDataNumLevels(amg_data);
+    return hypre_error_flag;
+}
+
+HYPRE_Int
 hypre_BoomerAMGSetStrongThresholdR( void         *data,
                                     HYPRE_Real    strong_threshold )
 {
