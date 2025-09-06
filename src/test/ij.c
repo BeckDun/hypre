@@ -634,6 +634,9 @@ main( hypre_int argc,
    HYPRE_ExecutionPolicy exec2_policy = HYPRE_EXEC_DEVICE;
 #endif
 
+   HYPRE_ExecutionPolicy setup_exec_policy = default_exec_policy;
+   HYPRE_ExecutionPolicy solve_exec_policy = default_exec_policy;
+
    for (arg_index = 1; arg_index < argc; arg_index ++)
    {
       if ( strcmp(argv[arg_index], "-memory_host") == 0 )
@@ -659,6 +662,24 @@ main( hypre_int argc,
       else if ( strcmp(argv[arg_index], "-exec2_device") == 0 )
       {
          exec2_policy = HYPRE_EXEC_DEVICE;
+      }
+      else if ( strcmp(argv[arg_index], "-setup_host_solve_device") == 0 )
+      {
+	 memory_location = HYPRE_MEMORY_HOST;
+         setup_exec_policy = HYPRE_EXEC_HOST;
+         solve_exec_policy = HYPRE_EXEC_DEVICE;
+      }
+   }
+
+    if (myid == 0)
+   {
+      if (setup_exec_policy == HYPRE_EXEC_HOST && solve_exec_policy == HYPRE_EXEC_DEVICE)
+      {
+         hypre_printf("*** DEBUG: PCG will use CPU setup + GPU solve ***\n");
+      }
+      else
+      {
+         hypre_printf("*** DEBUG: PCG using default execution policies ***\n");
       }
    }
 
@@ -2861,7 +2882,7 @@ main( hypre_int argc,
    HYPRE_SetMemoryLocation(memory_location);
 
    /* default execution policy */
-   HYPRE_SetExecutionPolicy(default_exec_policy);
+   // HYPRE_SetExecutionPolicy(default_exec_policy);
 
 #if defined(HYPRE_USING_GPU)
    ierr = HYPRE_SetSpMVUseVendor(spmv_use_vendor); hypre_assert(ierr == 0);
@@ -4915,7 +4936,7 @@ main( hypre_int argc,
       if (second_time)
       {
          HYPRE_ANNOTATE_REGION_BEGIN("%s", "Run-2");
-         HYPRE_SetExecutionPolicy(exec2_policy);
+         // dHYPRE_SetExecutionPolicy(exec2_policy);
 
          /* run a second time [for timings, to check for memory leaks] */
          HYPRE_ParVectorSetRandomValues(x, 775);
@@ -5763,6 +5784,7 @@ main( hypre_int argc,
          hypre_printf("HYPRE_ParCSRPCGGetPrecond got good precond\n");
       }
 
+      HYPRE_SetExecutionPolicy(setup_exec_policy);
       hypre_GpuProfilingPushRange("PCG-Setup-1");
       HYPRE_PCGSetup(pcg_solver, (HYPRE_Matrix) parcsr_M,
                      (HYPRE_Vector) b, (HYPRE_Vector) x);
@@ -5774,6 +5796,14 @@ main( hypre_int argc,
 
       time_index = hypre_InitializeTiming("PCG Solve");
       hypre_BeginTiming(time_index);
+
+	// move the memory from CPU to GPU
+     
+      // hypre_ParCSRMIgrate;
+      // hypre_ParVectorMigrate;
+      // hypre_Par migrate;
+
+      HYPRE_SetExecutionPolicy(solve_exec_policy);  /* Switch to solve policy */
       hypre_GpuProfilingPushRange("PCG-Solve-1");
       HYPRE_PCGSolve(pcg_solver, (HYPRE_Matrix)parcsr_A,
                      (HYPRE_Vector)b, (HYPRE_Vector)x);
@@ -5787,7 +5817,7 @@ main( hypre_int argc,
       if (second_time)
       {
          HYPRE_ANNOTATE_REGION_BEGIN("%s", "Run-2");
-         HYPRE_SetExecutionPolicy(exec2_policy);
+         HYPRE_SetExecutionPolicy(setup_exec_policy);
 
          /* run a second time [for timings, to check for memory leaks] */
          HYPRE_ParVectorSetRandomValues(x, 775);
@@ -5817,6 +5847,7 @@ main( hypre_int argc,
 
          time_index = hypre_InitializeTiming("PCG Solve");
          hypre_BeginTiming(time_index);
+         HYPRE_SetExecutionPolicy(solve_exec_policy);  /* Switch to solve policy */
 
          hypre_GpuProfilingPushRange("PCG-Solve-2");
 
