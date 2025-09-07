@@ -1,0 +1,17 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=256
+#SBATCH --cpus-per-task=1
+#SBATCH --partition=ghx4
+#SBATCH --time=00:05:00
+#SBATCH --job-name=dscg_gpu
+#SBATCH --account=bdys-dtai-gh
+#SBATCH --gpus-per-node=0
+
+module list
+
+cd $HOME/hypre/src/build/test
+
+srun -n 256 ./ij -solver 1 -125pt -n 128 128 128 -P 8 8 4
+
+

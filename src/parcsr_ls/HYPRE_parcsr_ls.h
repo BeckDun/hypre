@@ -146,6 +146,9 @@ HYPRE_Int HYPRE_BoomerAMGGetResidual(HYPRE_Solver     solver,
 HYPRE_Int HYPRE_BoomerAMGGetNumIterations(HYPRE_Solver  solver,
                                           HYPRE_Int          *num_iterations);
 
+HYPRE_Int HYPRE_BoomerAMGGetAArray(HYPRE_Solver solver, HYPRE_ParCSRMatrix** A_array);
+HYPRE_Int HYPRE_BoomerAMGGetNumLevels(HYPRE_Solver solver, HYPRE_Int* num_levels);
+
 /**
  * Returns cumulative num of nonzeros for A and P operators
  **/
@@ -2887,12 +2890,6 @@ HYPRE_Int HYPRE_ParCSRGMRESSolve(HYPRE_Solver       solver,
                                  HYPRE_ParCSRMatrix A,
                                  HYPRE_ParVector    b,
                                  HYPRE_ParVector    x);
-
-HYPRE_Int HYPRE_ParCSRGMRESSetRefSolution(HYPRE_Solver solver,
-                                          HYPRE_ParVector ref_solution);
-
-HYPRE_Int HYPRE_ParCSRGMRESGetRefSolution(HYPRE_Solver solver,
-                                          HYPRE_ParVector *ref_solution);
 
 HYPRE_Int HYPRE_ParCSRGMRESSetKDim(HYPRE_Solver solver,
                                    HYPRE_Int    k_dim);

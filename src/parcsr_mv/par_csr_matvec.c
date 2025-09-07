@@ -215,7 +215,7 @@ hypre_ParCSRMatrixMatvecOutOfPlaceHost( HYPRE_Complex       alpha,
    if (num_cols_offd)
    {
       hypre_CSRMatrixMatvec(alpha, offd, x_tmp, 1.0, y_local);
-   }
+  }
 
    /*---------------------------------------------------------------------
     * Free memory

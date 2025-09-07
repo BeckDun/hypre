@@ -358,6 +358,7 @@ main( HYPRE_Int   argc,
          else if ( strcmp(argv[arg_index], "pcg") == 0 )
          {
             solver_id = HYPRE_PCG;
+printf("Solver ID %d (PCG)\n", solver_id);
          }
          else if ( strcmp(argv[arg_index], "pfmg") == 0 )
          {

@@ -278,6 +278,18 @@ HYPRE_BoomerAMGSetStrongThreshold( HYPRE_Solver solver,
 }
 
 HYPRE_Int
+HYPRE_BoomerAMGGetAArray(HYPRE_Solver solver, hypre_ParCSRMatrix*** A_array)
+{
+    return (hypre_BoomerAMGGetAArray((void*)solver, A_array));
+}
+
+HYPRE_Int
+HYPRE_BoomerAMGGetNumLevels(HYPRE_Solver solver, HYPRE_Int* num_levels)
+{
+    return (hypre_BoomerAMGGetNumLevels((void*)solver, num_levels));
+}
+
+HYPRE_Int
 HYPRE_BoomerAMGGetStrongThreshold( HYPRE_Solver solver,
                                    HYPRE_Real * strong_threshold  )
 {
